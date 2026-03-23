@@ -36,4 +36,4 @@ Central documentation for all projects.
 
 ## Fedora Desktop
 
-- [[fedora/README]] — Fedora setup notes
+- [[fedora/PLAN]] — Fedora desktop plan

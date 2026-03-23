@@ -1,3 +1,7 @@
+> **Wiki Notice:** Project documentation should be copied to `/home/adminbill/projects/docs/<project-name>/` and pushed to [homelab-wiki](https://github.com/coocookanoo/homelab-wiki) so it appears at https://wiki.billsserver1.duckdns.org
+
+---
+
 # Wiki.js — Documentation Wiki
 
 Self-hosted wiki synced from GitHub, serving docs for all projects.
@@ -13,11 +17,11 @@ Self-hosted wiki synced from GitHub, serving docs for all projects.
 |---|---|
 | Email | `williammcdevitt@gmail.com` |
 | Username | `adminbill` |
-| Password | `21217Wam5085` |
+| Password | *(see project password manager)* |
 
 ## Git Sync
 
-Syncs from `git@github.com:coocookanoo/prison-cmms.git` (master branch) every 5 minutes.
+Syncs from `git@github.com:coocookanoo/homelab-wiki.git` (master branch) every 5 minutes.
 
 - SSH deploy key: `/data/wikijs/ssh/id_ed25519`
 - To force sync: Administration → Storage → Git → **Sync Now**

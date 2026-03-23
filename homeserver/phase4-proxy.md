@@ -1,3 +1,7 @@
+> **Wiki Notice:** Project documentation should be copied to `/home/adminbill/projects/docs/<project-name>/` and pushed to [homelab-wiki](https://github.com/coocookanoo/homelab-wiki) so it appears at https://wiki.billsserver1.duckdns.org
+
+---
+
 # Phase 4 — Proxy (Squid)
 
 **Status: ✅ Complete** — Squid HTTP proxy running on :3128
