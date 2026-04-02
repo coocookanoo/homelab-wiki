@@ -49,6 +49,24 @@ Then restart: `docker restart pihole`
 dig @10.0.0.1 google.com +short
 ```
 
+## Adblock Lists
+
+### YouTube Ads (Pi-hole)
+
+Add the community YouTube ad-domain blocklist:
+
+**Pi-hole UI** → *Adlists* → Add:
+```
+https://raw.githubusercontent.com/kboghdady/youTube_ads_4_pi-hole/master/youtubelist.txt
+```
+
+Then update gravity:
+```bash
+docker exec pihole pihole -g
+```
+
+---
+
 ## Unifi WiFi AP
 
 - Controller: `https://10.0.0.1:8444` (Docker, `linuxserver/unifi-network-application`)

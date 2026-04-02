@@ -33,6 +33,22 @@ SQLite (`cmms.db`) is used for local development. Created automatically on first
 
 Check `.env.example` for default admin credentials.
 
+## Local LLM (AI Suggestions)
+
+The AI work order suggestion feature requires Ollama running locally.
+
+```bash
+# Ollama should already be running as a systemd service
+curl http://localhost:11434/api/tags   # confirm it's up
+
+# Set env var to point at local Ollama
+export LM_API_URL=http://127.0.0.1:11434
+export LM_MODEL=qwen3-coder-next:latest
+```
+
+Without Ollama, the app falls back to `app/ai_local_stub.py` automatically — no errors,
+just canned stub responses.
+
 ## See Also
 
 - [[setup/docker]] — Docker deployment

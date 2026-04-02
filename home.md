@@ -37,3 +37,4 @@ Central documentation for all projects.
 ## Fedora Desktop
 
 - [[fedora/PLAN]] — Fedora desktop plan
+- [[fedora/ollama-setup]] — Ollama + Open WebUI setup (local LLM)
