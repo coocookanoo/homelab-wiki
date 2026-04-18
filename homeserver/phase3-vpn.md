@@ -78,6 +78,48 @@ sudo systemctl enable wg-quick@wg0
 sudo cat /etc/wireguard/iphone.conf | qrencode -t ansiutf8
 ```
 
+## Troubleshooting
+
+### No internet access on client (DNS failure)
+
+**Symptom:** WireGuard connects (handshake succeeds), can ping `10.8.0.1`, but no web browsing or name resolution.
+
+**Root cause — Pi-hole `listeningMode = "LOCAL"`:**
+Pi-hole v6 defaults to `LOCAL` mode, which only answers DNS queries from directly-attached networks. The WireGuard subnet (`10.8.0.0/24`) isn't a local network from the container's perspective, so Pi-hole silently drops queries from `10.8.0.2`. You'll see this in Pi-hole logs:
+```
+WARNING: dnsmasq: ignoring query from non-local network 10.8.0.2
+```
+
+**Fix:**
+```bash
+sudo sed -i 's/listeningMode = "LOCAL"/listeningMode = "ALL"/' /data/pihole/etc/pihole.toml
+docker restart pihole
+```
+
+Verify it's working:
+```bash
+dig @10.0.0.1 google.com +short
+```
+
+### Route missing after network restart
+
+**Symptom:** WireGuard was working, stopped after a reboot or `netplan apply`.
+
+**Root cause:** `wg-quick@wg0` runs once at boot. If networking restarts later, the `10.8.0.0/24` route via `wg0` gets wiped and the interface goes DOWN.
+
+**Fix:**
+```bash
+sudo systemctl restart wg-quick@wg0
+```
+
+Verify:
+```bash
+ip route show | grep wg0   # should show 10.8.0.0/24 dev wg0
+sudo wg show               # should show recent handshake
+```
+
+---
+
 ## Add a New Client
 
 ```bash

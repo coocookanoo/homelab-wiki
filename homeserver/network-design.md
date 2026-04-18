@@ -12,13 +12,13 @@
         │
         └── [WAN: enp0s31f6 / 192.168.1.34]
                   [THIS SERVER — Ubuntu 24.04]
-            [LAN: enp4s0 / 10.0.0.1]
+            [LAN: enp5s0 / 10.0.0.1]
                         │
           [ADTRAN NetVanta 1560-08-65W switch]
           10.0.0.2 — port 5 = server uplink
                         │
          ┌──────────────┴──────────────┐
-   [UniFi AP]                    [Other devices]
+   [UniFi AP]              [server2 + camera + other devices]
    port 1 (PoE)                  ports 2–10
    10.0.0.162
 ```
@@ -39,6 +39,12 @@
 | Fedora PC | 192.168.1.33 | adminbill's workstation — on ISP subnet, not server LAN |
 | Server (WAN) | 192.168.1.34 | DHCP from modem — how Fedora PC reaches server |
 | Server (LAN) | 10.0.0.1 | Static, gateway for switch/AP/LAN devices |
+| server2 | 10.0.0.145 | Frigate NVR + Forgejo |
+| server3 | 10.0.0.151 | Proxmox, Prometheus + Grafana monitoring stack (node-exporter at 10.0.0.3) |
+| cam1 | 10.0.0.201 | Hikvision DS-2CD2112F-I, static |
+| cam2 | 10.0.0.202 | Hikvision DS-2CD2112F-I, static |
+| cam3 | 10.0.0.203 | Hikvision DS-2CD2112F-I, static |
+| cam4 | 10.0.0.204 | Hikvision DS-2CD2112F-I, static |
 | ADTRAN Switch | 10.0.0.2 | Static, set via web UI |
 | UniFi AP | 10.0.0.162 | DHCP (reserved by MAC) |
 | DHCP Range | 10.0.0.100–200 | Assigned by dnsmasq on server |
@@ -48,7 +54,7 @@
 | Interface | Role | IP |
 |---|---|---|
 | enp0s31f6 | WAN (to modem) | 192.168.1.34 (DHCP) |
-| enp4s0 | LAN (to switch) | 10.0.0.1/24 |
+| enp5s0 | LAN (to switch) | 10.0.0.1/24 |
 
 ## ISP Modem Port Forwards
 | External Port | Protocol | Internal IP | Internal Port | Purpose |
@@ -87,6 +93,41 @@ See: [nginx-proxy-manager.md](nginx-proxy-manager.md) for setup details.
 | Sonarr | 8989 | TCP | Docker |
 | Radarr | 7878 | TCP | Docker |
 | Prowlarr | 9696 | TCP | Docker |
+
+## Tailscale
+
+- Server Tailscale IP: `100.64.61.90`
+- Fedora Tailscale IP: `100.103.121.79`
+- SSH via Tailscale: `ssh adminbill@100.64.61.90`
+
+### Accessing `server2` from the Fedora workstation
+
+Direct SSH from the Fedora workstation to `10.0.0.145` is not currently the
+documented working path. The confirmed working route on `2026-04-16` is:
+
+```bash
+ssh -F /dev/null adminbill@100.64.61.90
+ssh adminbill@10.0.0.145
+```
+
+That reaches `server2` by first entering `server1` over Tailscale, then hopping
+from `server1` into the LAN host at `10.0.0.145`.
+
+### Critical: Disable accept-dns on the server
+
+The server runs dnsmasq and IS the DNS server for the network. Tailscale's MagicDNS
+(`100.100.100.100`) is not a full recursive resolver — it can't look up external domains.
+If accept-dns is left enabled (the default), Tailscale overrides the system resolver with
+MagicDNS and external DNS lookups fail (SERVFAIL). This breaks things like Claude Code
+trying to reach `api.anthropic.com`.
+
+**Fix — run once, persists across reboots:**
+```bash
+sudo tailscale set --accept-dns=false
+```
+
+> If external DNS ever stops working on the server, check this setting first.
+> Client machines (Fedora, phone) can leave accept-dns enabled — only the server needs this.
 
 ## VLAN Plan (Future)
 | VLAN | Name | Subnet | Purpose |

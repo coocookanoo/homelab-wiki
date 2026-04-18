@@ -22,7 +22,7 @@
 | | |
 |---|---|
 | Username | `admin` |
-| Password | `adminbill` |
+| Password | `password` |
 
 ## SSH Legacy Flags (Fedora)
 The switch uses old SSH algorithms. Connect with:
@@ -56,8 +56,19 @@ ssh -oHostKeyAlgorithms=+ssh-rsa \
 ## Default Config Behavior
 - Tries DHCP on boot, falls back to `10.10.10.1/24` after 60 seconds
 - All ports on VLAN 1 untagged
-- SNMP disabled by default (good)
+- SNMP disabled by default
 - HTTPS enabled by default
+
+## SNMP (enabled 2026-04-18)
+
+- **Mode:** SNMPv2c, read-only
+- **Community:** `homelab`
+- **Allowed source:** `10.0.0.0/24`
+- Configured via web UI → SNMP → SNMPv3 Community Configuration
+- Scraped by `snmp_exporter` in CT 101 on server3 — see [phase12-monitoring.md](phase12-monitoring.md)
+
+> **Note:** The switch SSH CLI stores `snmp-server community homelab ro` with `ip-range 0.0.0.0 0.0.0.0`
+> which blocks all sources. Always configure SNMP source IP via the **web UI**, not the CLI.
 
 ## Static IP Configuration
 Set via web UI: System → IP Configuration → VLAN 1 interface
