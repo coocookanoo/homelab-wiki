@@ -1,5 +1,40 @@
 # Project Log — axel-harness
 
+---
+
+## 2026-04-03 — LLM wipe + fresh rebuild
+
+**Who:** Bill + Claude Code
+
+### What we did
+
+**Full LLM stack wipe** — everything outside `~/projects/` deleted:
+- `~/.lmstudio/` (336GB of GGUFs), `~/.ollama/`, `~/.openclaw/`, `~/.continue/`, `~/llama.cpp/`, `~/lm-agent/`, `~/agent-env/`, both LM Studio config dirs
+- All 29 Ollama models removed
+- TTS models moved to `~/projects/tts/` (kept)
+
+**Root cause found** — all previous OpenClaw failures traced to one config mistake:
+- Old setup used `baseUrl: "http://127.0.0.1:11434/v1"` + `api: "openai-completions"`
+- The `/v1` OpenAI-compat endpoint **silently breaks Ollama tool calling** — model outputs raw JSON instead of proper tool calls, agent loops forever
+- Fix: `baseUrl: "http://127.0.0.1:11434"` (no `/v1`) + `api: "ollama"` (native API)
+
+**Model choice** — switched from qwen3:14b-axel to `qwen3:32b`:
+- 14B and smaller models proved too small for OpenClaw agentic tool-use (hallucinate calls, loop)
+- 32B fits fully on RTX 4090 (20GB @ Q4_K_M), fast at ~50-70 tok/s
+- 32768 context window with q4_0 KV cache compression
+
+**Fresh OpenClaw setup:**
+- `openclaw setup` → fresh `~/.openclaw/openclaw.json`
+- Gateway auth token generated, stored in `~/.openclaw/gateway.token`
+- `~/.bashrc` exports `OPENCLAW_GATEWAY_TOKEN` on login
+- Native Ollama provider configured, gateway running as systemd user service
+
+**Verified working:** `openclaw tui` connected, `ollama/qwen3:32b` confirmed in status bar.
+
+### Current state
+
+OpenClaw + qwen3:32b working. axel-harness binary still at `~/.local/bin/axel` — will need model config updated from qwen3:14b-axel to qwen3:32b if used.
+
 Running log of work sessions, decisions, and context. Newest entries at the top.
 
 ---

@@ -17,8 +17,7 @@ Documentation for **Axel** — Bill's local persistent AI agent running on OpenC
 | OpenClaw config | `~/.openclaw/openclaw.json` |
 | Axel's workspace | `~/.openclaw/workspace/` |
 | Identity / persona | `~/.openclaw/agents/main/agent/IDENTITY.md` |
-| Primary model | `qwen3:14b-axel` (Ollama, 65536 ctx) |
-| Heavy coder model | `qwen3-coder-next:latest` (VRAM-heavy, use sparingly) |
+| Primary model | `qwen3:32b` (Ollama, 32768 ctx, fully on RTX 4090) |
 | Ollama endpoint | `http://127.0.0.1:11434` |
 | OpenClaw gateway | `ws://127.0.0.1:18789` |
 | axel serve port | `18790` |

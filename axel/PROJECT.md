@@ -77,10 +77,9 @@ Axel's workspace is `~/.openclaw/workspace/`. The harness should:
 
 ## Axel's Setup (for reference)
 
-- **Machine:** Fedora 43, RTX 4090 24GB, 93GB RAM
-- **Ollama:** `http://127.0.0.1:11434`
-- **Primary model:** `qwen3:14b-axel` (custom modelfile, 65536 ctx, 8192 max tokens)
-- **Heavy coder model:** `qwen3-coder-next:latest` (use sparingly — VRAM-heavy)
+- **Machine:** Fedora 43, RTX 4090 24GB, 93.5GB RAM
+- **Ollama:** `http://127.0.0.1:11434` (native API — no `/v1`)
+- **Primary model:** `qwen3:32b` (32768 ctx, 8192 max tokens, fully on RTX 4090)
 - **Workspace:** `~/.openclaw/workspace/`
 - **OpenClaw gateway:** `ws://127.0.0.1:18789` (existing harness, systemd service)
 
