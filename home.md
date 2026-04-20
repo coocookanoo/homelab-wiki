@@ -38,3 +38,4 @@ Central documentation for all projects.
 
 - [[fedora/PLAN]] — Fedora desktop plan
 - [[fedora/ollama-setup]] — Ollama + Open WebUI setup (local LLM)
+- [[fedora/ssh-persistent-sessions]] — SSH never drops: sshd keepalives + tmux auto-start on boot
