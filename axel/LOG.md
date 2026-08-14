@@ -2,6 +2,92 @@
 
 ---
 
+## 2026-08-14 — LM Studio removed; axel + Alpaca both on Ollama/qwen
+
+**Who:** Bill + Claude Code
+
+### What we did
+
+**LM Studio deleted from the box entirely** (42GB: `~/.lmstudio`, PATH entries in 4 shell
+files, desktop entry). Its two models were imported into Ollama first and verified
+responding before anything was deleted:
+- `google/gemma-4-26b-a4b` → `bench-gemma26:latest`
+- `nvidia/nemotron-3-nano` → `nemotron-3-nano:latest`
+
+Conversations + server logs preserved at `~/backups/lmstudio-archive-20260814/` (97MB).
+
+**Why:** two engines contending for one 24GB 4090. LM Studio sat on 17.9GB of VRAM for a
+model `lms ps` reported as *not loaded* (an orphaned allocation), which starved Chrome's
+GPU process into repeated SIGILL crashes. Consolidating onto Ollama removes the contention
+and the duplicate model library.
+
+### The breakage this caused, and the fix
+
+`axel` with no flags **failed outright** after the removal — `crates/axel-cli/src/main.rs:46`
+had `const DEFAULT_MODEL: &str = "google/gemma-4-26b-a4b"`, which routes to LM Studio's
+`:1234`. Neither `~/.claw/settings.json`'s `model` key nor its `env` block overrides this
+(verified empirically — settings `env` is *not* applied to provider resolution), and there
+is **no `AXEL_MODEL` env var**. Only `--model` / `--provider` / `AXEL_PROVIDER` work at runtime.
+
+Fixed by changing the constant to `qwen3.6:27b-q4_K_M` and rebuilding (`cargo build --release
+-p axel-cli`, 3.4s incremental). Old binary kept at `~/.local/bin/axel.bak-20260814`.
+
+`qwen3.6:27b-q4_K_M` is **unlisted** in the provider registry, and `detect_provider_kind`
+resolves unlisted models to `ProviderKind::Ollama` — so the routing is correct without a
+registry entry.
+
+### Benchmark (same GGUF, same GPU, one engine at a time)
+
+`gemma-4-26B-A4B-it-Q4_K_M`, 3 runs, median, streaming:
+
+| engine | TTFT | throughput |
+|--------|------|------------|
+| Ollama | 0.33s | **130 tok/s** |
+| LM Studio | **0.19s** | 97 tok/s |
+
+**Caveat:** not an engine verdict. Both are llama.cpp; our Ollama has real tuning LM Studio
+didn't (`OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q4_0`, `NUM_BATCH=512`). Read it as
+"Ollama as configured here beats LM Studio as configured here."
+
+**Reasoning-model streaming gotcha:** gemma-4-26B streams into `delta.reasoning` (Ollama) and
+`delta.reasoning_content` (LM Studio) — **never** `delta.content` while thinking. Any
+OpenAI-compat client that only reads `content` sees an empty response from both.
+
+### `/v1` tool-calling concern — retested, no longer applies
+
+The 2026-04-03 entry warns that the `/v1` OpenAI-compat endpoint silently breaks Ollama tool
+calling. Retested 2026-08-14 with axel's Ollama provider (whose `default_base_url` *is*
+`http://127.0.0.1:11434/v1`): a prompt requiring a file read produced a correct `read_file`
+tool call and the right answer. Tool calling works over `/v1` with the current stack.
+
+### Alpaca (new GUI, replaces LM Studio's interface)
+
+Flatpak `com.jeffser.Alpaca` 9.2.5. Two gotchas worth knowing:
+1. It installs and runs its **own bundled Ollama** on `:11435` with an empty model library —
+   it will not see `/var/lib/ollama/models`. Change the instance from `ollama:managed` to
+   type `ollama` (Ollama External) pointed at `http://127.0.0.1:11434`. Config lives in
+   `~/.var/app/com.jeffser.Alpaca/data/alpaca.db`, table `instance`.
+2. An **empty `api` property throws `Illegal header value b'Bearer '`** — the code does
+   `'Bearer {}'.format(properties.get('api'))`, so an empty string yields a trailing space,
+   which httpx rejects. Set any non-empty dummy token; Ollama ignores it.
+
+Default + title model set to `qwen3.6:27b-q4_K_M`, same as axel.
+
+### Current state
+
+- One engine (Ollama), one model store (`/var/lib/ollama/models`), one GUI (Alpaca)
+- `qwen3.6:27b-q4_K_M` resident, `UNTIL: Forever` (`OLLAMA_KEEP_ALIVE=-1`)
+- `~/.config/axel/models.toml` rewritten — all entries are Ollama tags now
+
+### Open tradeoff
+
+Keeping a 17GB model resident forever recreates the exact VRAM squeeze LM Studio caused —
+Chrome is back to ~4GB headroom and its GPU process will likely keep crashing. Switching
+`PREFERRED_MODEL` in `~/.mempalace/kg_extract.py` to `gemma4:12b` (7.6GB) would leave ~14GB
+free. Not done — deferred to Bill.
+
+---
+
 ## 2026-04-03 — LLM wipe + fresh rebuild
 
 **Who:** Bill + Claude Code
