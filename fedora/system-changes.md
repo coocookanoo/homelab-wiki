@@ -1,0 +1,103 @@
+# System Changes Register — Fedora Workstation
+
+Running record of every deliberate change made to a program, service, or system
+config on this box (hostname `fedora`), and **why**. The point is that six months
+from now the reason is still here — so nothing gets "cleaned up" without knowing
+what it was load-bearing for.
+
+Scope: this workstation only. Servers are documented under `homeserver/`; other
+machines (bazzite box, Amy's laptop) have their own notes.
+
+## How to use this
+
+- **One row per change.** Newest at the top.
+- **Detail column** links to the full writeup when there is one. Small changes
+  live entirely in this table; anything with a real diagnosis gets its own `.md`
+  in this directory and a link from here.
+- **Revert** says how to undo it. If a change is load-bearing, say so there.
+- When a change is undone, don't delete the row — move it to
+  [Reverted / historical](#reverted--historical) with the outcome. A fix that
+  didn't work is worth as much as one that did.
+
+## Active changes
+
+| Date | Program / unit | Change | Why | Revert | Detail |
+|---|---|---|---|---|---|
+| 2026-08-18 | `rclone-gdrive.service` (user) | `ExecStartPre=-/usr/bin/fusermount3 -uz %h/GoogleDrive`; `RestartSteps=10`, `RestartMaxDelaySec=5min` | rclone aborted on a Go heap-corruption bug and left a stale FUSE mount; `ExecStop` never runs on restart-after-crash, so all 1,158 retries failed `directory already mounted` and ~/GoogleDrive stayed dead ~20h until reboot | Restore `rclone-gdrive.service.bak.20260818` | [[fedora/rclone-gdrive-crash-lockout]] |
+| 2026-08-18 | btrfs (root fs) | Ran first `btrfs scrub` in months; installed `stressapptest` | Investigating scattered multi-process crashes. Scrub found 21 checksum errors (20 corrected, **1 uncorrectable** — `~/backup/projects-20260331.tar.gz` is permanently damaged). Both SSDs SMART-clean with `media_errors: 0`, so corruption entered before the drive, not from failing NAND. Cause unresolved: mixed-kit non-ECC RAM vs. accumulated damage from 113/195 unsafe shutdowns | Scrub is read-mostly; nothing to revert. `dnf remove stressapptest` | memory `project_ram_mixed_kits` |
+| 2026-08-18 | Memory / BIOS | ~~DRAM Frequency 4800 → 4400~~ *(superseded — the 4400 pass was measured on a crippled 8-thread CPU)*, EXPO off, all else Auto (4 DIMMs, 96 GB) | 4 populated slots (6 ranks: 2×32 GB dual-rank + 2×16 GB single-rank, mismatched CL40/CL36) cannot hold 4800 on this daisy-chain B650 — `stressapptest` failed in 49 s on bit 17, the data line with least timing slack. 4400 passes 10 min at 45.5 GB/s (+47% vs the 3600 fallback). **Neither kit is defective**; both pass alone at 4800 | Set DRAM Frequency to 3600 (proven), or run the 2×32 GB pair alone at 4800 (proven) | [[fedora/ram-stability-bios-settings]] |
+| 2026-08-18 | Memory / BIOS | **DRAM Frequency → 3600**, EXPO off, all else Auto (4 DIMMs, 96 GB) — **settled config** | 4 populated slots (6 ranks: 2×32 GB dual-rank + 2×16 GB single-rank, mismatched CL40/CL36) cannot hold 4800 on this daisy-chain B650 (fails in 49 s on bit 17, the line with least timing slack). 3600 passes 10 min at **full 32 threads, 37.3 GB/s** — the only 4-DIMM result verified under real load. Costs ~nothing here: LLM/ComfyUI work is GPU-bound. **Neither kit is defective — do NOT RMA** | Raise DRAM Frequency; 4400 and 4800 both available but need full-thread re-testing | [[fedora/ram-stability-bios-settings]] |
+| 2026-08-18 | BIOS / CPU | **Load Optimized Defaults** to recover 16 cores + SMT | A failed EXPO-5600 POST silently put the board in failsafe: one CCD and SMT disabled, **32 threads → 8**, no warning or log entry, surviving ~2.5 h and multiple reboots. Confirmed config not damage (zero MCEs, 4.9 GHz boost, L3 back to 64 MiB/2 instances, Tccd2 reporting). It also invalidated every test run in that window | Re-apply any BIOS customisation; the pre-existing hand-tuned memory values were already lost | [[fedora/ram-stability-bios-settings]] |
+| 2026-08-18 | systemd-coredump | Deleted `/etc/systemd/coredump.conf.d/no-chrome.conf` | It set `ExcludePatterns=chrome`, not a valid systemd key — logged "Unknown key 'ExcludePatterns' ... ignoring" on every dump. systemd-coredump has **no** exclude-by-pattern option, so the file never did anything; it only implied Chrome cores were being suppressed when they weren't. **Cleanup, not a behaviour change** — Chrome cores were being collected before and still are | Recreate the file (it is inert either way); copy in `scratchpad/no-chrome.conf.deleted-20260818` | this file |
+| 2026-08-18 | `ollama.service` | Consolidated 3 stacked drop-ins (`20-wait-for-nvidia.conf`, `override.conf`, `zz-repair.conf`) into one commented `override.conf` | Effective config was unreadable: 4 `Environment=` lines duplicated at identical values, and an `ExecStart` pin whose purpose wasn't recorded. **Behaviour deliberately unchanged** — verified by diffing `systemctl show` before/after (same 13 env vars, same values, no duplicate keys) | Originals kept in `ollama.service.d/pre-consolidation-20260818/`; copy them back + `daemon-reload` | this file |
+| 2026-08-16 | `netmode` (`~/.local/bin`) | New script: `netmode panic\|restore\|status` | Switch between documented static .35 and cable-modem DHCP in ~8s when the network drops; recurring .35 drift is a NM profile-**count** race, not an address problem | Delete script; no system state held | memory `project_netmode_panic_button` |
+| 2026-08-13 | Plasma desktop icons | New script `fix-desktop-icons` (`~/.local/bin`, + KRunner entry) | Desktop icons stop responding to clicks (3rd occurrence). Root cause still unknown — no log signature. Script restores interactivity **without a reboot** and logs state to `~/.local/state/desktop-icon-freeze.log` for eventual diagnosis | Delete script | memory `project_plasma_desktop_icons_freeze` |
+| 2026-08-12 | btrfs (root fs) | Quotas **disabled** | snapper-cleanup's btrfs qgroup walk froze the whole desktop (2026-05-06). Verified still disabled 2026-08-12 | **Do not re-enable.** This is the fix, not a side effect | memory `project_btrfs_qgroup_freeze` |
+| 2026-08-01 | Firefox | `media.hardware-video-decoding.enabled = false` | Stops RDD-process SIGSYS crashes — nvidia VDPAU issues ioctls the RDD seccomp sandbox doesn't allowlist. Cost: CPU decode, YouTube stutter | Flip pref to `true`; crashes return | [[fedora/firefox-amd-igpu-decode]] |
+| 2026-07-30 | `snapd.service` | SELinux relabel after `selinux-policy` bumps | snapd crash-loops `203/EXEC` after routine `dnf upgrade` that includes a selinux-policy bump | Recurring workaround, not permanent state | [[fedora/dnf-update-snapd-crash-loop]] |
+| 2026-07-19 | SDDM | `/etc/sddm.conf.d/99-kwin-gpu-pin.conf` — `GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell,KWIN_DRM_DEVICES=/dev/dri/card2:/dev/dri/card1` | fc43→44 login crash-loop, bug 1 of 2: greeter lost a GPU card race. `EnvironmentFile` does **not** reach the compositor — it must be `GreeterEnvironment` | Delete the conf.d file; login crash-loop returns | memory `project_fedora44_nvidia_wayland_lockout` |
+| 2026-07-19 | OpenRGB | Runs as **user** service (`openrgb-server.service`); system `openrgb.service` kept disabled. Units rewired off `graphical-session.target` | fc43→44 login crash-loop, bug 2 of 2 — the real session killer. The unit's ordering cycle is rejected by Plasma 6.7's session transaction | **Never re-add `graphical-session.target` coupling.** Verified system unit still `disabled` | memory `project_openrgb` |
+| 2026-07-?? | `kf6-kimageformats` | Pinned to 6.25 via `excludepkgs` in `/etc/dnf/dnf.conf` | 6.28 segfaults on HEIC thumbnails | Remove the exclude line once a fixed build lands, then `dnf update` | memory `project_kimageformats_heic_pin` |
+| 2026-06-12 | `ollama.service` | Drop-in `20-wait-for-nvidia.conf` — `ExecStartPre` polls `nvidia-smi -L` up to 60s | Ollama probes for GPUs exactly once at startup. After a kernel update akmods rebuilds the nvidia modules during boot; if ollama wins the race it silently falls back to **CPU** until manually restarted | Delete drop-in; silent CPU fallback returns | `/etc/systemd/system/ollama.service.d/` |
+| (undated) | `snd-hda-intel` | `/etc/modprobe.d/snd-hda-intel.conf` — `power_save=0 power_save_controller=N` | Wired headphones missing — AMD Ryzen HD Audio codec probe timeout. Needs reboot to apply; BIOS Azalia enable is the fallback | Delete conf file | memory `project_wired_headphones_audio` |
+| (undated) | Logitech G502 | Forced to Host mode via Solaar for persistent 1600 DPI | Onboard DPI kept resetting | Tradeoff accepted: onboard DPI buttons are disabled | memory `project_g502_dpi` |
+
+## Reverted / historical
+
+| Date | Program | What was tried | Outcome |
+|---|---|---|---|
+| 2026-08-01 | Firefox / AMD iGPU | Route hw video decode to the idle AMD Raphael iGPU via `LIBVA_DRIVER_NAME=radeonsi` + `mesa-va-drivers-freeworld`, to get hw decode back without the nvidia VDPAU sandbox crash | **Did not work, reverted same day.** Permanent state is software decode. Full attempt kept in the doc in case it's revisited — see [[fedora/firefox-amd-igpu-decode]] |
+
+## Open items
+
+- **`ollama` env vars possibly dead** — `OLLAMA_NUM_BATCH=512` and `OLLAMA_NUM_THREAD=4` do
+  not appear in ollama 0.30.6's own startup `server config` env map, while the other 11 do.
+  They may be no-ops on this version. Pre-existing, unrelated to the 2026-08-18
+  consolidation; left in place rather than silently dropped. Verify before relying on them.
+- **Caves of Qud segfault 2026-08-18 12:22:47** — native SIGSEGV in `UnityPlayer.so`
+  `ExecutePlayerLoop`, `addr:(nil) code:128`. **Steam did not crash** (still running); the game
+  did. No managed exception, no nvidia Xid, no OOM. First and only Qud coredump in retained
+  history (back to Jul 25), and the core is *not* truncated. Two unseparated candidates, both in
+  the same second: (a) zone transition — log's last entries are `Building JoppaWorld.11.22.1.1.14`
+  + freezing two zones while descending, (b) the Claude Advisor mod's `EndTurnEvent` export, which
+  runs on the main thread inside the player loop. The export *completed* (valid 11-key JSON), which
+  argues against dying mid-walk. Aug 17 evening session ran the same ported mod and exited cleanly.
+  Controlled test if it recurs: play with the mod disabled, descending strata. See memory
+  `project_qud_advisor`.
+- **RAM is 4 DIMMs from two mismatched kits, never tested** — 2×32 GiB `CMK64GX5M2B5600C40`
+  (CL40) + 2×16 GiB `CMK32GX5M2B5600C36` (CL36), 96 GB, non-ECC, all at 4800 MT/s. EXPO is
+  **off** (JEDEC 4800 @ 1.1 V), which rules out the usual Ryzen DDR5 overclock cause, but mixed
+  kits + 4 DIMMs on AM5 is a genuine risk factor, and non-ECC means corruption is silent (so
+  "no MCE errors" proves nothing). Live suspect for the rclone GC heap corruption, the Qud
+  segfault, and the Chrome/Claude Desktop segfaults. **Counter-evidence:** 39 of 70 retained
+  coredumps are Firefox and 31 are SIGSYS (one known sandbox bug, 30 on 08-02 alone), and ollama
+  keeps a 17-27 GB model resident for hours with zero crashes ever. No memory test tooling is
+  installed. An overnight `memtest86+` would settle it either way. See memory
+  `project_ram_mixed_kits`.
+- **RAM: one soak left** — root cause resolved (4 populated slots / 6 ranks can't hold 4800; **no module faulty, do NOT
+  RMA**). Settled on **96 GB @ 3600, verified at full 32 threads**. Filesystem verified clean (the
+  earlier 21 scrub errors were **false positives from checksumming in faulty RAM** — no files lost).
+  Outstanding: overnight soak at 3600, and **hold backup/git-mirror pushes to server1** until it
+  passes. See [[fedora/ram-stability-bios-settings]] and memory `project_ram_mixed_kits`.
+- **Claude Desktop crashing repeatedly** — 3 crashes in 6 days of use (2026-08-15
+  SIGSEGV helper, 08-16 SIGTRAP helper, 08-17 18:23 SIGILL main+renderer, app died,
+  down ~1h). Not memory (70GB free at crash, no OOM-kill). SIGILL/SIGTRAP are
+  Chromium's deliberate `ud2`/`int3` crash idiom, **not** a CPU fault — don't read
+  them as hardware. All cores truncated + binary stripped, so no local root cause;
+  Crashpad reports went upstream. Package upgraded 1.28929.0 → 1.30096.1 on 08-15
+  17:50, but one crash predates that upgrade, so it is not a clean regression.
+  Untried experiments: raise coredump size caps so cores stop truncating; drop
+  `--ozone-platform=x11` for native Wayland (app runs XWayland on Wayland+nvidia).
+  No change made yet.
+- **Kernel 7.1.8-200.fc44 hard-crash** is still unexplained (~1 confirmed event;
+  pstore empty, no panic captured). Not a change — tracked here so it isn't
+  mistaken for one of the above. See memory `project_kernel_718_hardcrash`.
+- Several rows above are undated because the change predates this register.
+  Fill in from git/journal if it ever matters.
+
+## Convention going forward
+
+Any change to a program, unit, or system config on this box gets a row here **at
+the time it's made**, not batched up later. If it needed more than a sentence of
+diagnosis, it also gets its own `.md` in this directory, linked from the Detail
+column and from [[home]].
