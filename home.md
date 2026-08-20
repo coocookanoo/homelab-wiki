@@ -41,6 +41,7 @@ Central documentation for all projects.
 - [[fedora/ollama-setup]] — Ollama + Open WebUI setup (local LLM)
 - [[fedora/ssh-persistent-sessions]] — SSH never drops: sshd keepalives + tmux auto-start on boot
 - [[fedora/ram-stability-bios-settings]] — BIOS settings for the 4×dual-rank mixed-kit RAM (stability)
+- [[fedora/plasma-desktop-icon-freeze]] — desktop icons stop responding to clicks (recurring, root cause unknown)
 - [[fedora/rclone-gdrive-crash-lockout]] — rclone Drive mount: crash left a stale FUSE mount, locked out 1,158 restarts
 - [[fedora/dnf-update-snapd-crash-loop]] — snapd 203/EXEC crash-loop after selinux-policy bumps
 - [[fedora/firefox-amd-igpu-decode]] — hw video decode on the AMD iGPU (tried, reverted)
