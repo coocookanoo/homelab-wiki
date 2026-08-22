@@ -1,6 +1,6 @@
 # Plasma desktop icons stop responding to clicks
 
-**Status: workaround confirmed (4 occurrences). Root cause NOT identified.**
+**Status: workaround confirmed (5 occurrences). Root cause NOT identified.**
 **Never reboot for this** — the fix takes ~2 seconds.
 
 ## Symptom
@@ -41,9 +41,16 @@ sends a notification.
 | 2 | 2026-08-08 | — | Restart-fix discovered |
 | 3 | 2026-08-13 ~14:40 | 3h42m | Script written this day — but it logged **nothing**, see below |
 | 4 | 2026-08-20 ~15:27 | 4h47m | Wayland, `~/GoogleDrive` FUSE mounted. First entry with real data |
+| 5 | 2026-08-22 ~16:20 | 5h04m | Wayland, `~/GoogleDrive` mounted. Kernel 7.1.9, kwin **6.7.4-2**. First fully clean log entry |
 
-Both measured cases are multi-hour uptimes. No short-uptime occurrence has been
-seen yet — too few data points to call it a pattern.
+All three measured cases are multi-hour: **3h42m, 4h46m, 5h04m** — a 3.5–5h
+band, and increasing. Not enough points to call it a cause, but it is the only
+consistent quantity across occurrences so far, and no short-uptime freeze has
+ever been seen. In both #4 and #5 plasmashell's uptime was effectively the
+session uptime (shell started at boot), so "plasmashell uptime" and "time since
+login" are not yet distinguishable.
+
+Frequency is increasing: #3 → #4 was 7 days, #4 → #5 was 2 days.
 
 ## Why there is no root cause yet
 
@@ -96,13 +103,19 @@ Pre-patch copy kept at `~/.local/bin/fix-desktop-icons.bak.20260820`.
 
 **Caveat:** entry #4 in the log was written by the pre-patch script seconds
 before the patch, so its `outputs:` block is still ANSI-garbled. Its other
-fields are fine. Entries from #5 on will be clean.
+fields are fine. Entry #5 (2026-08-22) is the first fully clean one and does
+record both display names — the patch works in the field, not just in test.
 
 ## Ruled out
 
-- **Not fixed by any available update** as of 2026-08-13 — Plasma and kwin both
-  6.7.4. The pending kwin 6.7.4-2 changelog is only "apps possibly getting
-  disconnected on Mesa 26+", unrelated to input handling.
+- **kwin 6.7.4-2 does not fix it — confirmed empirically 2026-08-22.** On
+  08-13 this was only a guess from the changelog ("apps possibly getting
+  disconnected on Mesa 26+", unrelated to input handling). That update is now
+  installed and occurrence #5 happened anyway. Closed.
+- **Not a kernel issue in any obvious way.** #5 occurred on kernel
+  7.1.9-200.fc44 after a fresh boot; earlier occurrences were on 7.1.7/7.1.8.
+- **Not stale session state carried across a reboot.** #5 came 5h into a clean
+  boot, with plasmashell started at login.
 - **The rclone `~/GoogleDrive` FUSE mount is not implicated.** The
   `Invalid path data; path truncated` line logged at the exact minute the mount
   was added (2026-08-13 14:01) is a Qt **SVG** artwork warning about drawing
